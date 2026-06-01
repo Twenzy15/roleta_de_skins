@@ -520,6 +520,35 @@
       transform: translateY(0);
     }
 
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 18;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -18px;
+      width: 9px;
+      height: 15px;
+      border-radius: 2px;
+      background: var(--confetti-color);
+      opacity: 0.95;
+      animation: confetti-fall var(--fall-duration) linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+      }
+
+      100% {
+        transform: translate3d(var(--drift), calc(100vh + 34px), 0) rotate(var(--spin));
+      }
+    }
+
     @media (max-width: 1050px) {
       .layout {
         grid-template-columns: 1fr;
@@ -621,6 +650,7 @@
   </main>
 
   <div class="toast" id="toast"></div>
+  <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
 
   <script>
     const rarityColors = {
@@ -764,6 +794,7 @@
     const inventoryEl = document.getElementById("inventory");
     const inventoryCountEl = document.getElementById("inventoryCount");
     const toastEl = document.getElementById("toast");
+    const confettiLayerEl = document.getElementById("confettiLayer");
 
     function skin(weapon, finish, rarity, value, weight, type, image) {
       const design = skinDesigns[skinDesignIndex % skinDesigns.length];
@@ -859,6 +890,37 @@
 
       playTone(1046.5, audio.currentTime + 0.72, 0.46, "sine", 0.09);
       playTone(1567.98, audio.currentTime + 0.72, 0.46, "sine", 0.07);
+    }
+
+    function launchConfetti() {
+      const colors = ["#f6bd35", "#61d394", "#67a8ff", "#f277c6", "#ff6464", "#ffffff"];
+      const pieces = 120;
+
+      confettiLayerEl.innerHTML = "";
+
+      for (let index = 0; index < pieces; index += 1) {
+        const piece = document.createElement("span");
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.85;
+        const duration = 2.8 + Math.random() * 2.2;
+        const drift = (Math.random() * 240 - 120).toFixed(0);
+        const spin = (Math.random() * 900 + 360).toFixed(0);
+
+        piece.className = "confetti-piece";
+        piece.style.left = `${left}%`;
+        piece.style.animationDelay = `${delay}s`;
+        piece.style.setProperty("--confetti-color", color);
+        piece.style.setProperty("--fall-duration", `${duration}s`);
+        piece.style.setProperty("--drift", `${drift}px`);
+        piece.style.setProperty("--spin", `${spin}deg`);
+
+        confettiLayerEl.appendChild(piece);
+      }
+
+      setTimeout(() => {
+        confettiLayerEl.innerHTML = "";
+      }, 5600);
     }
 
     function pickWeighted(items) {
@@ -1139,7 +1201,10 @@
         stopRouletteSound();
         inventory.unshift(wonItem);
         spinning = false;
-        if (wonItem.value > caseData.price) playJackpotSound();
+        if (wonItem.value > caseData.price) {
+          playJackpotSound();
+          launchConfetti();
+        }
         statusText.textContent = `Você recebeu ${itemName(wonItem)}.`;
         resultEl.className = "result";
         resultEl.innerHTML = `
