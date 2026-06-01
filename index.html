@@ -745,6 +745,8 @@
       }
     ];
 
+    normalizePaidCaseProfitOdds();
+
     let balance = 0;
     let inventory = [];
     let spinning = false;
@@ -767,6 +769,38 @@
       const design = skinDesigns[skinDesignIndex % skinDesigns.length];
       skinDesignIndex += 1;
       return { weapon, finish, rarity, value, weight, type, image, design };
+    }
+
+    function normalizePaidCaseProfitOdds() {
+      const totalWeight = 10000;
+      const profitWeight = 25;
+      const lossWeight = totalWeight - profitWeight;
+
+      cases.forEach(caseData => {
+        if (caseData.price <= 0) return;
+
+        const profitItems = caseData.items.filter(item => item.value > caseData.price);
+        const lossItems = caseData.items.filter(item => item.value <= caseData.price);
+        if (profitItems.length === 0 || lossItems.length === 0) return;
+
+        distributeWeight(profitItems, profitWeight);
+        distributeWeight(lossItems, lossWeight);
+      });
+    }
+
+    function distributeWeight(items, totalWeight) {
+      const originalTotal = items.reduce((sum, item) => sum + item.weight, 0);
+      let usedWeight = 0;
+
+      items.forEach((item, index) => {
+        if (index === items.length - 1) {
+          item.weight = totalWeight - usedWeight;
+          return;
+        }
+
+        item.weight = Math.max(1, Math.round((item.weight / originalTotal) * totalWeight));
+        usedWeight += item.weight;
+      });
     }
 
     function formatMoney(value) {
