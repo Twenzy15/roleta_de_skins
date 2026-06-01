@@ -713,6 +713,8 @@
     let balance = 0;
     let inventory = [];
     let spinning = false;
+    let audioContext;
+    let rouletteSoundTimer;
 
     const balanceEl = document.getElementById("balance");
     const casesEl = document.getElementById("cases");
@@ -732,6 +734,60 @@
 
     function formatMoney(value) {
       return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function getAudioContext() {
+      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === "suspended") audioContext.resume();
+      return audioContext;
+    }
+
+    function playTone(frequency, start, duration, type = "sine", volume = 0.08) {
+      const audio = getAudioContext();
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+    }
+
+    function startRouletteSound() {
+      const audio = getAudioContext();
+      stopRouletteSound();
+
+      let tick = 0;
+      rouletteSoundTimer = setInterval(() => {
+        const now = audio.currentTime;
+        const frequency = 420 + (tick % 9) * 38;
+        playTone(frequency, now, 0.045, "square", 0.035);
+        tick += 1;
+      }, 78);
+    }
+
+    function stopRouletteSound() {
+      if (!rouletteSoundTimer) return;
+      clearInterval(rouletteSoundTimer);
+      rouletteSoundTimer = undefined;
+    }
+
+    function playJackpotSound() {
+      const audio = getAudioContext();
+      const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98];
+
+      notes.forEach((note, index) => {
+        playTone(note, audio.currentTime + index * 0.11, 0.14, "triangle", 0.11);
+      });
+
+      playTone(1046.5, audio.currentTime + 0.72, 0.46, "sine", 0.09);
+      playTone(1567.98, audio.currentTime + 0.72, 0.46, "sine", 0.07);
     }
 
     function pickWeighted(items) {
@@ -960,6 +1016,7 @@
 
       spinning = true;
       balance -= caseData.price;
+      startRouletteSound();
       rouletteTitle.textContent = caseData.name;
       statusText.textContent = "Girando...";
       resultEl.className = "result empty";
@@ -989,8 +1046,10 @@
       });
 
       setTimeout(() => {
+        stopRouletteSound();
         inventory.unshift(wonItem);
         spinning = false;
+        if (wonItem.value > caseData.price) playJackpotSound();
         statusText.textContent = `Você recebeu ${itemName(wonItem)}.`;
         resultEl.className = "result";
         resultEl.innerHTML = `
